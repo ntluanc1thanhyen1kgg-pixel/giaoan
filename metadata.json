@@ -1,0 +1,8 @@
+{
+  "name": "SOẠN GIÁO ÁN-NLS TH (28-12-2025)",
+  "description": "Một ứng dụng web sử dụng AI để tự động tạo kế hoạch bài dạy (giáo án) chi tiết theo mẫu chuẩn, giúp giáo viên tiết kiệm thời gian và công sức soạn bài.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the system (Admin or Teacher).",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "username": { "type": "string", "description": "Login username" },
+        "role": { "type": "string", "enum": ["admin", "teacher"], "description": "User role" },
+        "isLocked": { "type": "boolean", "description": "Whether the account is disabled" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "role", "isLocked"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Global application configuration for branding and banner.",
+      "type": "object",
+      "properties": {
+        "bannerTitle": { "type": "string" },
+        "bannerSubtitle": { "type": "string" },
+        "bannerImageUrl": { "type": "string" },
+        "headerColor": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["bannerTitle", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of all users."
+    },
+    "config": {
+      "schema": "AppConfig",
+      "description": "Single document collection for app settings."
+    }
+  }
+}

@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      let requiredKeys = ['uid', 'username', 'role', 'isLocked', 'createdAt', 'updatedAt'];
+      return data.keys().hasAll(requiredKeys) &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.username is string && data.username.size() <= 100 &&
+             data.role in ['admin', 'teacher'] &&
+             data.isLocked is bool &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('geminiApiKey' in data) || (data.geminiApiKey is string && data.geminiApiKey.size() <= 200)) &&
+             (!('geminiApiKeys' in data) || (data.geminiApiKeys is list && data.geminiApiKeys.size() <= 50)) &&
+             (!('tempPassword' in data) || (data.tempPassword is string && data.tempPassword.size() <= 100));
+    }
+
+    function isValidConfig(data) {
+      return data.keys().hasAll(['bannerTitle', 'updatedAt']) &&
+             data.bannerTitle is string && data.bannerTitle.size() <= 200 &&
+             (!('bannerSubtitle' in data) || (data.bannerSubtitle is string && data.bannerSubtitle.size() <= 500)) &&
+             (!('bannerImageUrl' in data) || (data.bannerImageUrl is string && data.bannerImageUrl.size() <= 1000)) &&
+             (!('headerColor' in data) || (data.headerColor is string && data.headerColor.size() <= 20)) &&
+             data.updatedAt is timestamp;
+    }
+
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if isSignedIn() && isAdmin() && isValidConfig(request.resource.data);
+    }
+
+    match /users/{userId} {
+      // Admins can read all users. Teachers can only read their own profile.
+      allow read: if isSignedIn() && (isAdmin() || isOwner(userId));
+
+      // Creation: 
+      // 1. Initial admin setup (allowing the specific admin@school.local account)
+      // 2. Admin creating a teacher account.
+      allow create: if isSignedIn() && 
+                    isValidUser(request.resource.data) &&
+                    request.resource.data.uid == userId &&
+                    (isAdmin() || (request.resource.data.username == 'admin' && request.auth.token.email == 'admin@school.local'));
+
+      // Update:
+      // 1. Admin updating a teacher (role, lock status, etc.)
+      // 2. User updating their own password/metadata/API keys
+      // Constraints: Admins cannot change their own role or isLocked status.
+      allow update: if isSignedIn() && (
+        // Admin update branch
+        (isAdmin() && 
+         isValidUser(request.resource.data) &&
+         // Prevent admin self-modification of role and lock status
+         (userId != request.auth.uid || (
+           request.resource.data.role == resource.data.role &&
+           request.resource.data.isLocked == resource.data.isLocked
+         ))
+        ) ||
+        // User self-update branch
+        (isOwner(userId) &&
+         isValidUser(request.resource.data) &&
+         request.resource.data.role == resource.data.role &&
+         request.resource.data.isLocked == resource.data.isLocked &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'updatedAt', 'geminiApiKey', 'geminiApiKeys', 'tempPassword'])
+        )
+      );
+
+      // Deletion: Only admins can delete teachers. Admins cannot delete themselves.
+      allow delete: if isSignedIn() && isAdmin() && userId != request.auth.uid;
+    }
+  }
+}
