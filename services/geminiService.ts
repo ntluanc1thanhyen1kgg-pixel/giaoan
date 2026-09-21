@@ -21,23 +21,50 @@ export const generateLessonPlan = async (data: LessonPlanInput, files: FileWithP
     files.filter(file => file.type.startsWith('image/')).map(fileToGenerativePart)
   );
 
-  const response = await fetch('/api/generate', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      data,
-      imageParts,
-      locale,
-      apiKey, // Still allow passing apiKey from client if provided
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to generate lesson plan');
+  let response: Response;
+  try {
+    response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data,
+        imageParts,
+        locale,
+        apiKey,
+      }),
+    });
+  } catch (netErr: any) {
+    throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại mạng internet của bạn.');
   }
 
-  return await response.json();
+  const contentType = response.headers.get('content-type') || '';
+  const textResponse = await response.text();
+
+  if (!contentType.includes('application/json')) {
+    console.error('Raw server non-JSON response:', textResponse.slice(0, 300));
+    
+    if (textResponse.includes('The page') || textResponse.includes('<!DOCTYPE html>') || response.status === 404) {
+      throw new Error(
+        'Đường dẫn API (/api/generate) chưa phản hồi đúng định dạng JSON. ' +
+        'Nếu bạn đang đưa code lên Vercel, vui lòng kiểm tra xem bạn đã thêm file vercel.json và cài đặt biến GEMINI_API_KEY trong Vercel chưa.'
+      );
+    }
+
+    throw new Error(`Máy chủ phản hồi không đúng định dạng JSON (${response.status} ${response.statusText}).`);
+  }
+
+  let resultData: any;
+  try {
+    resultData = JSON.parse(textResponse);
+  } catch (jsonErr) {
+    throw new Error(`Dữ liệu từ máy chủ không phải JSON hợp lệ. Chi tiết: ${textResponse.slice(0, 100)}`);
+  }
+
+  if (!response.ok) {
+    throw new Error(resultData?.error || 'Không thể tạo giáo án từ máy chủ');
+  }
+
+  return resultData;
 };

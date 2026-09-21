@@ -37,8 +37,13 @@ export default function App() {
     const checkConfig = async () => {
       try {
         const response = await fetch('/api/config');
-        const data = await response.json();
-        setHasServerApiKey(data.hasApiKey);
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.includes('application/json')) {
+          const data = await response.json();
+          setHasServerApiKey(!!data.hasApiKey);
+        } else {
+          setHasServerApiKey(false);
+        }
       } catch (err) {
         console.error("Failed to check server config:", err);
         setHasServerApiKey(false);
