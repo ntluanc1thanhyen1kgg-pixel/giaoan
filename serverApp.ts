@@ -318,6 +318,16 @@ export function createApp() {
           lastError = modelErr;
           console.warn(`[AI Server] Model ${model} encountered an issue:`, modelErr.message || modelErr);
 
+          const isInvalidKey = 
+            modelErr.message?.includes('API_KEY_INVALID') ||
+            modelErr.message?.includes('401') ||
+            modelErr.message?.includes('API key not valid');
+
+          if (isInvalidKey) {
+            console.error('[AI Server] API key is invalid, aborting model loop.');
+            break;
+          }
+
           const isTransient = 
             modelErr.message?.includes('503') ||
             modelErr.message?.includes('UNAVAILABLE') ||
@@ -327,11 +337,11 @@ export function createApp() {
             modelErr.message?.includes('quota');
 
           if (isTransient) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            continue;
+            await new Promise(resolve => setTimeout(resolve, 1500));
           }
 
-          break;
+          // Continue trying next candidate models (e.g. if gemini-3.6-flash is 403 or 404 or 503)
+          continue;
         }
       }
 

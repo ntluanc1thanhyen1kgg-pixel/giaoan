@@ -103,39 +103,55 @@ export const generateLessonPlan = async (data: LessonPlanInput, files: FileWithP
     throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại mạng internet của bạn.');
   }
 
-  const contentType = response.headers.get('content-type') || '';
   const textResponse = await response.text();
 
+  // 1. Check for 413 payload too large
   if (response.status === 413 || textResponse.includes('413') || textResponse.includes('FUNCTION_PAYLOAD_TOO_LARGE') || textResponse.includes('Payload Too Large')) {
     throw new Error(
       'Dung lượng ảnh đính kèm vượt quá giới hạn 4.5MB của Vercel. ' +
-      'Vui lòng đính kèm ít trang ảnh hơn (ví dụ 1-3 trang) hoặc giảm kích thước ảnh để Vercel tiếp nhận.'
+      'Vui lòng đính kèm ít trang ảnh hơn (ví dụ 1-3 trang) để Vercel tiếp nhận.'
     );
   }
 
-  if (!contentType.includes('application/json')) {
-    console.error('Raw server non-JSON response:', textResponse.slice(0, 300));
-    
-    if (textResponse.includes('The page') || textResponse.includes('<!DOCTYPE html>') || response.status === 404) {
-      throw new Error(
-        'Đường dẫn API (/api/generate) chưa phản hồi đúng định dạng JSON. ' +
-        'Nếu bạn đang đưa code lên Vercel, vui lòng kiểm tra xem bạn đã thêm file vercel.json và cài đặt biến GEMINI_API_KEY trong Vercel chưa.'
-      );
-    }
-
-    throw new Error(`Máy chủ phản hồi không đúng định dạng JSON (${response.status} ${response.statusText}).`);
-  }
-
-  let resultData: any;
+  // 2. Try parsing JSON first regardless of Content-Type header
+  let resultData: any = null;
+  let parseSuccess = false;
   try {
     resultData = JSON.parse(textResponse);
-  } catch (jsonErr) {
-    throw new Error(`Dữ liệu từ máy chủ không phải JSON hợp lệ. Chi tiết: ${textResponse.slice(0, 100)}`);
+    parseSuccess = true;
+  } catch (e) {
+    parseSuccess = false;
   }
 
-  if (!response.ok) {
-    throw new Error(resultData?.error || 'Không thể tạo giáo án từ máy chủ');
+  if (parseSuccess && resultData) {
+    if (!response.ok) {
+      throw new Error(resultData?.error || `Lỗi máy chủ (${response.status}): Không thể tạo giáo án.`);
+    }
+    return resultData;
   }
 
-  return resultData;
+  // 3. Fallback for non-JSON responses (HTML, plain text, Vercel timeouts/errors)
+  console.error('Raw non-JSON response from server:', response.status, textResponse.slice(0, 300));
+
+  if (response.status === 504 || textResponse.includes('504') || textResponse.includes('TIMEOUT')) {
+    throw new Error(
+      'Hệ thống quá thời gian chờ (504 Timeout) trên Vercel. ' +
+      'AI đang xử lý lượng dữ liệu lớn. Vui lòng thử lại hoặc giảm bớt thông tin/số tiết cần tạo.'
+    );
+  }
+
+  if (response.status === 500 || textResponse.includes('500')) {
+    throw new Error(
+      'Lỗi máy chủ (500). Vui lòng kiểm tra lại biến GEMINI_API_KEY trên Vercel (trong phần Project Settings -> Environment Variables) hoặc kiểm tra tính hợp lệ của Gemini API Key.'
+    );
+  }
+
+  if (textResponse.includes('The page') || textResponse.includes('<!DOCTYPE html>') || response.status === 404) {
+    throw new Error(
+      'Đường dẫn API (/api/generate) chưa phản hồi đúng định dạng. ' +
+      'Nếu bạn đang đưa ứng dụng lên Vercel, vui lòng đảm bảo đã có file vercel.json và cài đặt biến GEMINI_API_KEY.'
+    );
+  }
+
+  throw new Error(`Máy chủ phản hồi không đúng định dạng (${response.status} ${response.statusText || ''}).`);
 };
