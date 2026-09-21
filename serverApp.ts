@@ -6,7 +6,25 @@ export function createApp() {
   const app = express();
 
   app.use(cors());
-  app.use(express.json({ limit: '50mb' }));
+
+  // Safe body parsing for Vercel & Express environments
+  app.use((req: any, res: any, next: any) => {
+    if (req.body && typeof req.body === 'object') {
+      return next();
+    }
+    express.json({ limit: '50mb' })(req, res, next);
+  });
+
+  app.use((req: any, res: any, next: any) => {
+    if (typeof req.body === 'string') {
+      try {
+        req.body = JSON.parse(req.body);
+      } catch (e) {
+        // Ignore JSON parse error
+      }
+    }
+    next();
+  });
 
   // --- SCHEMAS ---
   const lessonPlan2345ObjectSchema = {
@@ -269,31 +287,32 @@ export function createApp() {
   };
 
   const handleGenerate = async (req: any, res: any) => {
-    const { data, imageParts = [], locale = 'vi', apiKey: clientApiKey } = req.body || {};
-    const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return res.status(400).json({ 
-        error: "Thiếu Gemini API Key. Vui lòng thiết lập biến GEMINI_API_KEY trên Vercel hoặc nhập API Key trong phần Cài đặt." 
-      });
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    const isCv5512 = data?.template === '5512';
-    const prompt = isCv5512 ? getPrompt5512(data, locale) : getPrompt2345(data, locale);
-    const schema = isCv5512 ? lessonPlan5512Schema : lessonPlan2345Schema;
-
-    const CANDIDATE_MODELS = [
-      'gemini-3.6-flash',
-      'gemini-3.8-flash',
-      'gemini-3.7-flash',
-      'gemini-3.5-flash',
-      'gemini-3.1-flash-lite',
-      'gemini-1.5-flash',
-      'gemini-flash-latest'
-    ];
-
     try {
+      const rawBody = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+      const { data = {}, imageParts = [], locale = 'vi', apiKey: clientApiKey } = rawBody;
+      const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(400).json({ 
+          error: "Thiếu Gemini API Key. Vui lòng thiết lập biến GEMINI_API_KEY trên Vercel (trong phần Project Settings -> Environment Variables) hoặc nhập API Key trong ứng dụng." 
+        });
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      const isCv5512 = data?.template === '5512';
+      const prompt = isCv5512 ? getPrompt5512(data, locale) : getPrompt2345(data, locale);
+      const schema = isCv5512 ? lessonPlan5512Schema : lessonPlan2345Schema;
+
+      const CANDIDATE_MODELS = [
+        'gemini-3.6-flash',
+        'gemini-3.8-flash',
+        'gemini-3.7-flash',
+        'gemini-3.5-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-1.5-flash',
+        'gemini-flash-latest'
+      ];
+
       let jsonText: string | null = null;
       let lastError: any = null;
 
@@ -325,7 +344,9 @@ export function createApp() {
 
           if (isInvalidKey) {
             console.error('[AI Server] API key is invalid, aborting model loop.');
-            break;
+            return res.status(400).json({
+              error: "Gemini API Key không hợp lệ. Vui lòng kiểm tra lại API Key đã nhập hoặc biến GEMINI_API_KEY trên Vercel."
+            });
           }
 
           const isTransient = 
@@ -340,13 +361,15 @@ export function createApp() {
             await new Promise(resolve => setTimeout(resolve, 1500));
           }
 
-          // Continue trying next candidate models (e.g. if gemini-3.6-flash is 403 or 404 or 503)
+          // Continue trying next candidate models
           continue;
         }
       }
 
       if (!jsonText) {
-        throw lastError || new Error("Empty response from AI");
+        return res.status(500).json({
+          error: lastError?.message || "Không nhận được phản hồi từ AI. Vui lòng thử lại sau giây lát."
+        });
       }
       
       const result = JSON.parse(jsonText);
@@ -366,7 +389,7 @@ export function createApp() {
     } catch (error: any) {
       console.error("Gemini API error:", error);
       return res.status(500).json({ 
-        error: error.message || "Failed to generate content"
+        error: error.message || "Đã xảy ra lỗi trên máy chủ khi tạo nội dung."
       });
     }
   };
