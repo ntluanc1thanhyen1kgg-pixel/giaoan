@@ -62,7 +62,7 @@ const ActivityTable2345: React.FC<{ activities: Activity2345[], t: (key: string)
 const LessonPlanItem2345: React.FC<{ plan: LessonPlan2345, index: number, t: (key: string) => string }> = ({ plan, index, t }) => (
   <div className="prose prose-sm max-w-none font-times text-[13pt] leading-relaxed text-justify mb-12 last:mb-0 border-b-2 border-gray-200 pb-8 last:border-b-0 last:pb-0">
     <h1 className="text-center font-bold uppercase mb-1">{t('lessonPlanTitle')}</h1>
-    <p className="text-center font-bold mb-1">Môn học: {plan.subject}</p>
+    <p className="text-center font-bold mb-1">Môn học: {plan.subject}; Lớp: {plan.grade}</p>
     <p className="text-center mb-1"><b>{plan.lessonTitle} ({plan.periods} tiết)</b>; <b>Tiết: {plan.executionTime}</b></p>
     <p className="text-center mb-4 italic">
       Thời gian thực hiện: {plan.dateRange}

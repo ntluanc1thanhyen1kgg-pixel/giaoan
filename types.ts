@@ -7,6 +7,9 @@ export interface LessonPlanInput {
   integrateDigitalCompetency: boolean;
   integrateSTEM: boolean;
   integrateDigitalCitizenship: boolean;
+  integrateDefenseSecurity: boolean;
+  integrateAI: boolean;
+  lessonTitle?: string;
 }
 
 export interface FileWithPreview extends File {

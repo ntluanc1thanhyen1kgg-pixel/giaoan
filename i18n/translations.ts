@@ -41,6 +41,8 @@ export const translations = {
     integrateDigitalCompetencyLabel: 'Định hướng NLS (CV 3456/BGDĐT-GDPT)',
     integrateSTEMLabel: 'Tích hợp STEM (Công văn 909/BGDĐT)',
     integrateDigitalCitizenshipLabel: 'Tích hợp Công dân số (CV 3899/BGDĐT-GDTH)',
+    integrateDefenseSecurityLabel: 'Tích hợp QPO-ANQP (Bộ GD&ĐT)',
+    integrateAILabel: 'Tích hợp Trí tuệ nhân tạo AI (QĐ 2422/QĐ-BGDĐT)',
 
     // Subject List
     primary_header: '--- CẤP TIỂU HỌC ---',
@@ -202,6 +204,8 @@ export const translations = {
     integrateDigitalCompetencyLabel: 'NLS Orientation (CV 3456/BGDĐT-GDPT)',
     integrateSTEMLabel: 'STEM Integration (Official Letter 909/BGDĐT)',
     integrateDigitalCitizenshipLabel: 'Digital Citizenship Integration (CV 3899/BGDĐT-GDTH)',
+    integrateDefenseSecurityLabel: 'National Defense & Security Integration (MOET)',
+    integrateAILabel: 'AI Education Integration (Decision 2422/QĐ-BGDĐT)',
 
     // Subject List
     primary_header: '--- PRIMARY LEVEL ---',

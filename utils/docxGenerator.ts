@@ -174,7 +174,7 @@ const generateDocx2345 = (plans: LessonPlan2345[], t: (key: string) => string): 
             alignment: AlignmentType.CENTER,
             style: "Title",
           }),
-          createRichParagraph([{text: `Môn học: ${plan.subject}`, bold: true}], { alignment: AlignmentType.CENTER }),
+          createRichParagraph([{text: `Môn học: ${plan.subject}; Lớp: ${plan.grade}`, bold: true}], { alignment: AlignmentType.CENTER }),
           createRichParagraph([
               {text: `${plan.lessonTitle} (${plan.periods} tiết); `, bold: true, size: 28},
               {text: `Tiết: ${plan.executionTime}`, bold: true, size: 28},

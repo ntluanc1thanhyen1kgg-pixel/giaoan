@@ -57,6 +57,27 @@ const compressImage = async (file: File, maxWidth = 1600, maxHeight = 1600, qual
 };
 
 const fileToGenerativePart = async (file: File) => {
+  // Directly handle PDF files using FileReader base64
+  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+    const base64EncodedData = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    return {
+      inlineData: {
+        mimeType: 'application/pdf',
+        data: base64EncodedData,
+      },
+    };
+  }
+
+  // Handle image files
   try {
     const compressed = await compressImage(file);
     return {
@@ -73,7 +94,7 @@ const fileToGenerativePart = async (file: File) => {
 
     return {
       inlineData: {
-        mimeType: file.type,
+        mimeType: file.type || 'image/jpeg',
         data: base64EncodedData,
       },
     };
@@ -82,7 +103,7 @@ const fileToGenerativePart = async (file: File) => {
 
 export const generateLessonPlan = async (data: LessonPlanInput, files: FileWithPreview[], locale: 'vi' | 'en', apiKey: string): Promise<LessonPlan[]> => {
   const imageParts = await Promise.all(
-    files.filter(file => file.type.startsWith('image/')).map(fileToGenerativePart)
+    files.map(fileToGenerativePart)
   );
 
   let response: Response;
@@ -142,14 +163,13 @@ export const generateLessonPlan = async (data: LessonPlanInput, files: FileWithP
 
   if (response.status === 500 || textResponse.includes('500')) {
     throw new Error(
-      'Lỗi máy chủ (500). Vui lòng kiểm tra lại biến GEMINI_API_KEY trên Vercel (trong phần Project Settings -> Environment Variables) hoặc kiểm tra tính hợp lệ của Gemini API Key.'
+      'Lỗi máy chủ (500). Vui lòng thử lại sau giây lát hoặc kiểm tra tính hợp lệ của Gemini API Key trong phần Cài đặt.'
     );
   }
 
   if (textResponse.includes('The page') || textResponse.includes('<!DOCTYPE html>') || response.status === 404) {
     throw new Error(
-      'Đường dẫn API (/api/generate) chưa phản hồi đúng định dạng. ' +
-      'Nếu bạn đang đưa ứng dụng lên Vercel, vui lòng đảm bảo đã có file vercel.json và cài đặt biến GEMINI_API_KEY.'
+      'Không thể kết nối đến API (/api/generate). Vui lòng kiểm tra lại kết nối hoặc tải lại trang.'
     );
   }
 

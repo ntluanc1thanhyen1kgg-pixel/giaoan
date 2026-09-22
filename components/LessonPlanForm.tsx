@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import type { LessonPlanInput, FileWithPreview } from '../types';
-import { UploadIcon, FileIcon, XIcon, RefreshCwIcon } from './icons';
+import { UploadIcon, FileIcon, XIcon, RefreshCwIcon, PdfIcon } from './icons';
 import { useI18n } from '../contexts/I18nContext';
 
 interface LessonPlanFormProps {
@@ -11,6 +11,7 @@ interface LessonPlanFormProps {
 
 const initialFormData: LessonPlanInput = {
   teacherName: '',
+  lessonTitle: '',
   subject: '',
   grade: '',
   periods: 1,
@@ -18,6 +19,8 @@ const initialFormData: LessonPlanInput = {
   integrateDigitalCompetency: false,
   integrateSTEM: false,
   integrateDigitalCitizenship: false,
+  integrateDefenseSecurity: false,
+  integrateAI: false,
 };
 
 const SUBJECTS_BY_LEVEL = [
@@ -129,10 +132,11 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({ onSubmit, isLoad
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
+      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
       const newFiles = Array.from(e.target.files)
-        .filter((file: File) => ['image/jpeg', 'image/png'].includes(file.type))
+        .filter((file: File) => allowedMimes.includes(file.type) || file.name.toLowerCase().endsWith('.pdf'))
         .map((file: File) => Object.assign(file, {
-          preview: URL.createObjectURL(file)
+          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : ''
         }));
       setFiles(prev => [...prev, ...newFiles]);
     }
@@ -153,6 +157,8 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({ onSubmit, isLoad
     onReset();
   }, [onReset]);
 
+  const hasPdfFile = files.some(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+
   const inputStyles = "mt-1 block w-full px-4 py-3 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-lg text-gray-900";
   const labelStyles = "block text-lg font-medium";
 
@@ -164,6 +170,28 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({ onSubmit, isLoad
         <div>
           <label htmlFor="teacherName" className={labelStyles}>{t('teacherNameLabel')}</label>
           <input type="text" name="teacherName" id="teacherName" value={formData.teacherName} onChange={handleChange} required className={inputStyles}/>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between">
+            <label htmlFor="lessonTitle" className={labelStyles}>
+              Tên bài dạy {hasPdfFile && <span className="text-red-500 font-bold text-sm ml-1">* (Nên nhập khi dùng PDF)</span>}
+            </label>
+          </div>
+          <input 
+            type="text" 
+            name="lessonTitle" 
+            id="lessonTitle" 
+            value={formData.lessonTitle || ''} 
+            onChange={handleChange} 
+            placeholder={hasPdfFile ? "Vui lòng nhập tên bài dạy cho file PDF..." : "Tùy chọn: Nhập tên bài dạy hoặc để trống nếu dùng hình ảnh tự nhận dạng..."} 
+            className={`${inputStyles} ${hasPdfFile && !formData.lessonTitle ? 'border-amber-400 ring-2 ring-amber-100 bg-amber-50/30' : ''}`}
+          />
+          {hasPdfFile && (
+            <p className="text-xs text-amber-700 mt-1 font-medium flex items-center gap-1">
+              <span>📌</span> Thầy/cô đang tải file PDF, vui lòng nhập tên bài dạy để AI tập trung soạn chính xác nội dung.
+            </p>
+          )}
         </div>
 
         <div>
@@ -234,6 +262,42 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({ onSubmit, isLoad
           </div>
         </div>
 
+        <div className="relative flex items-start">
+          <div className="flex items-center h-5">
+            <input
+              id="integrateDefenseSecurity"
+              name="integrateDefenseSecurity"
+              type="checkbox"
+              checked={formData.integrateDefenseSecurity}
+              onChange={handleChange}
+              className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
+            />
+          </div>
+          <div className="ml-3 text-base">
+            <label htmlFor="integrateDefenseSecurity" className="font-medium text-gray-800">
+              {t('integrateDefenseSecurityLabel')}
+            </label>
+          </div>
+        </div>
+
+        <div className="relative flex items-start">
+          <div className="flex items-center h-5">
+            <input
+              id="integrateAI"
+              name="integrateAI"
+              type="checkbox"
+              checked={formData.integrateAI}
+              onChange={handleChange}
+              className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
+            />
+          </div>
+          <div className="ml-3 text-base">
+            <label htmlFor="integrateAI" className="font-medium text-gray-800">
+              {t('integrateAILabel')}
+            </label>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
            <div>
               <label htmlFor="subject" className={labelStyles}>{t('subjectLabel')}</label>
@@ -297,32 +361,40 @@ export const LessonPlanForm: React.FC<LessonPlanFormProps> = ({ onSubmit, isLoad
         
         <div>
           <label className={labelStyles}>{t('fileSupportLabel')}</label>
-           <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+           <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-indigo-400 transition-colors">
             <div className="space-y-1 text-center">
               <UploadIcon />
               <div className="flex text-lg text-gray-600">
                 <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                   <span>{t('uploadButton')}</span>
-                  <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple accept=".jpg,.jpeg,.png" onChange={handleFileChange} />
+                  <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple accept=".jpg,.jpeg,.png,.webp,.pdf,application/pdf" onChange={handleFileChange} />
                 </label>
                 <p className="pl-1">{t('dragAndDrop')}</p>
               </div>
-              <p className="text-base text-gray-500">{t('fileTypes')}</p>
+              <p className="text-base text-gray-500">Hỗ trợ ảnh SGK (JPG, PNG) hoặc tệp PDF bài dạy</p>
             </div>
           </div>
           {files.length > 0 && (
             <div className="mt-4 space-y-2">
-              {files.map(file => (
-                <div key={file.name} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
-                   <div className="flex items-center space-x-2">
-                    <FileIcon />
-                    <span className="text-base text-gray-800 truncate">{file.name}</span>
+              {files.map(file => {
+                const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                return (
+                  <div key={file.name} className="flex items-center justify-between bg-gray-100 p-2.5 rounded-md border border-gray-200">
+                     <div className="flex items-center space-x-2.5 overflow-hidden">
+                      {isPdf ? <PdfIcon /> : <FileIcon />}
+                      <span className="text-base text-gray-800 truncate font-medium">{file.name}</span>
+                      {isPdf && (
+                        <span className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase shrink-0">
+                          PDF
+                        </span>
+                      )}
+                    </div>
+                     <button type="button" onClick={() => removeFile(file.name)} className="text-gray-400 hover:text-red-600 transition-colors p-1" title="Xóa tệp">
+                       <XIcon />
+                     </button>
                   </div>
-                   <button type="button" onClick={() => removeFile(file.name)} className="text-gray-500 hover:text-gray-700">
-                     <XIcon />
-                   </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
