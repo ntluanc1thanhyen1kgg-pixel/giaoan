@@ -472,15 +472,16 @@ export function createApp() {
       const schema = isCv5512 ? lessonPlan5512Schema : lessonPlan2345Schema;
 
       const CANDIDATE_MODELS = [
-        'gemini-3.1-flash-lite',
-        'gemini-3.8-flash',
-        'gemini-3.6-flash',
-        'gemini-3.7-flash',
-        'gemini-flash-latest',
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-2.0-flash-lite',
       ];
 
       let jsonText: string | null = null;
       let lastError: any = null;
+
+      const formattedParts = [{ text: prompt }, ...imageParts];
 
       // Graceful silent failover loop across high-availability models
       for (const model of CANDIDATE_MODELS) {
@@ -492,7 +493,7 @@ export function createApp() {
           try {
             const response = await ai.models.generateContent({
               model,
-              contents: { parts: [{ text: prompt }, ...imageParts] },
+              contents: formattedParts,
               config: {
                 responseMimeType: 'application/json',
                 responseSchema: schema,
@@ -507,6 +508,7 @@ export function createApp() {
           } catch (modelErr: any) {
             lastError = modelErr;
             const errMsg = modelErr.message || String(modelErr);
+            console.error(`[AI Server] Model ${model} attempt ${attempts} failed:`, errMsg);
 
             const isInvalidKey = 
               errMsg.includes('API_KEY_INVALID') ||
@@ -572,7 +574,7 @@ export function createApp() {
         }
 
         return res.status(500).json({
-          error: "Không nhận được phản hồi từ AI. Vui lòng thử lại sau giây lát."
+          error: `Không nhận được phản hồi từ AI (${lastMsg || 'Lỗi kết nối Gemini'}). Vui lòng kiểm tra lại API Key trong phần Cài đặt.`
         });
       }
       
